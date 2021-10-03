@@ -151,41 +151,6 @@ app.post("/api/upload", (req,res)=>{
     });
 });
 
-//
-app.post('/fileUpload', (req, res) => {
-    var form = new formidable.IncomingForm();
-    form.parse(req, (err, fields, files) => {
-        if (err) return res.status(400).send(err);
-        const token = JSON.parse(fields.token);
-        console.log(token)
-        if (token == null) return res.status(400).send('Token not found');
-        oAuth2Client.setCredentials(token);
-        console.log(files.file);
-        const drive = google.drive({ version: "v3", auth: oAuth2Client });
-        const fileMetadata = {
-            name: files.file.name,
-        };
-        const media = {
-            mimeType: files.file.type,
-            body: fs.createReadStream(files.file.path),
-        };
-        drive.files.create(
-            {
-                resource: fileMetadata,
-                media: media,
-                fields: "id",
-            },
-            (err, file) => {
-                oAuth2Client.setCredentials(null);
-                if (err) {
-                    console.error(err);
-                    res.status(400).send(err)
-                } else {
-                    res.send('Successfully upload the file')
-                }
-            }
-        );
-    });
-  });
+
 
 app.listen(5550, () => console.log("Server connected on port 5550"));
