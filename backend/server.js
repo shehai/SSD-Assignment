@@ -1,12 +1,19 @@
 const express = require('express');
-const app = express();
+
 const multer = require("multer");
 const fs = require ("fs");
+const bodyParser = require("body-parser");
+const cors = require("cors");
+const OAuth2Data = require('./credential.json')
+const {google} = require ('googleapis')
+const formidable = require('formidable');
+
+const app = express();
+app.use(cors({origin:"*"}));
+app.use(bodyParser.json());
+app.use(bodyParser.urlencoded({extended:false}));
 
 var name,pic
-
-const OAuth2Data = require('./credentials.json')
-const {google} = require ('googleapis')
 
 const CLIENT_ID = OAuth2Data.web.client_id
 
@@ -27,7 +34,7 @@ var authed = false
 
 const SCOPES = "https://www.googleapis.com/auth/drive.file https://www.googleapis.com/auth/userinfo.profile"
 
-var storage = multer.diskStorage({
+var Storage = multer.diskStorage({
 
     destination: function (req, file, callback){
 
@@ -35,7 +42,7 @@ var storage = multer.diskStorage({
 
     },
     filename : function (req, file, callback){
-        callback(null, file.fieldname + "_" + Date.now()+" "+file.originalname)
+        callback(null,`FunOfHeuristic_${file.originalname}`)
     },
 });
 
@@ -43,6 +50,7 @@ var upload = multer({
     storage: Storage,
 
 }).single("file");
+
 app.get('/', (req,res)=>{
 
     if(!authed){
@@ -55,7 +63,7 @@ app.get('/', (req,res)=>{
 
         console.log(url)
 
-        return res.send(url)
+        return res.json(url)
 
     }else{
 
@@ -67,7 +75,7 @@ app.get('/', (req,res)=>{
     }
 })
 
-app.get('/getAcessToken',(req,res)=>{
+app.get('/api/callback',(req,res)=>{
 
     const code = req.query.code
 
@@ -84,13 +92,14 @@ app.get('/getAcessToken',(req,res)=>{
                 OAuth2Client.setCredentials(tokens)
 
                 authed = true
+                res.redirect("http://localhost:4200/upload");
             }
         })
     }
 })
 
 
-app.post("/upload/image", (req,res)=>{
+app.post("/api/upload", (req,res)=>{
 
     upload(req,res, function (err){
         if(err){
@@ -99,8 +108,15 @@ app.post("/upload/image", (req,res)=>{
 
         }else{
             console.log(req.file.path);
+
+            //
+           
+           
+            //oAuth2Client.setCredentials(req.body.token);
+            
+
             const drive = google.drive({version:"v3",auth:OAuth2Client});
-            const fileMetaDeta ={
+            const fileMetaData ={
                 name : req.file.filename,
             };
 
@@ -110,7 +126,7 @@ app.post("/upload/image", (req,res)=>{
             };
             drive.files.create({
 
-                resource:fileMetadata,
+                resource:fileMetaData,
                 media: media,
                 fields:"id",
             },
@@ -122,16 +138,54 @@ app.post("/upload/image", (req,res)=>{
 
                 else{
                     fs.unlinkSync(req.file.path)
-                    return res.send("sucess", {name:name, pic:pic,sucess:true})
+                    console.error("suceeeeeeeeeee");
+                    return res.json("sucess")
                 }
               
 
             }
 
-            }
-            )
+            
+            );
         }
-    })
-})
+    });
+});
+
+//
+app.post('/fileUpload', (req, res) => {
+    var form = new formidable.IncomingForm();
+    form.parse(req, (err, fields, files) => {
+        if (err) return res.status(400).send(err);
+        const token = JSON.parse(fields.token);
+        console.log(token)
+        if (token == null) return res.status(400).send('Token not found');
+        oAuth2Client.setCredentials(token);
+        console.log(files.file);
+        const drive = google.drive({ version: "v3", auth: oAuth2Client });
+        const fileMetadata = {
+            name: files.file.name,
+        };
+        const media = {
+            mimeType: files.file.type,
+            body: fs.createReadStream(files.file.path),
+        };
+        drive.files.create(
+            {
+                resource: fileMetadata,
+                media: media,
+                fields: "id",
+            },
+            (err, file) => {
+                oAuth2Client.setCredentials(null);
+                if (err) {
+                    console.error(err);
+                    res.status(400).send(err)
+                } else {
+                    res.send('Successfully upload the file')
+                }
+            }
+        );
+    });
+  });
 
 app.listen(5550, () => console.log("Server connected on port 5550"));
