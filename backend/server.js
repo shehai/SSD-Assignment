@@ -109,12 +109,6 @@ app.post("/api/upload", (req,res)=>{
         }else{
             console.log(req.file.path);
 
-            //
-           
-           
-            //oAuth2Client.setCredentials(req.body.token);
-            
-
             const drive = google.drive({version:"v3",auth:OAuth2Client});
             const fileMetaData ={
                 name : req.file.filename,
@@ -138,7 +132,7 @@ app.post("/api/upload", (req,res)=>{
 
                 else{
                     fs.unlinkSync(req.file.path)
-                    console.error("suceeeeeeeeeee");
+                    console.error("undefined error");
                     return res.json("sucess")
                 }
               
